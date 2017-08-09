@@ -1,0 +1,59 @@
+---
+title: "Prediction Assignment Writeup"
+author: "MisterT1000"
+date: "8/9/2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+### Initial Setup 
+I'm loading the caret and random forest libraries and setting the working directory to begin.
+```{r initial_setup, message = FALSE}
+library(caret)
+library(randomForest)
+setwd("~/test-repo/PracticalMachineLearningProject/")
+```
+
+## Importing and cleaning data
+I imported the data and changed the NA's to 0. The next step is removing the data elements that are not actually predictors, such as the name, window, and timestamp columns. I also made sure to convert data that came up as factors back to the numeric types they should be.
+```{r data, message = FALSE}
+dataset <- read.csv("pml-training.csv")
+dataset[is.na(dataset)] <- 0
+dataset <- dataset[,-c(1:7)]
+dataset[,sapply(dataset, class)=="factor"][-34] <- sapply(dataset[,(sapply(dataset, class)=="factor")],as.numeric)[-34]
+```
+
+I'm using the X,Y, and Z component predictors because the others are generally calculated from these and, as a result, my hypothesis is that those would not be as signinficant.
+```{r predictors}
+dataset <- dataset[,grepl("_x$|_y$|_z$|classe",names(dataset))]
+```
+
+I split my training data into a new training and validation set.
+```{r training}
+training <- createDataPartition(y = dataset$classe, p = 0.7, list = FALSE)
+train <- dataset[training, ]
+validation <- dataset[-training, ]
+```
+
+I'm using the random forest method to build my model.
+```{r model}
+modRF <- randomForest(classe~.,data=train)
+```
+
+Find the out of sample error rate with the validation set.
+```{r validate}
+pred <- predict(modRF,validation)
+result <- confusionMatrix(pred,validation$classe)
+result
+```
+
+Apply the model to the test data set to make a prediction.
+```{r test}
+finalTest <- read.csv("pml-testing.csv")
+finalTest[is.na(finalTest)] <- 0
+finalPred <- predict(modRF,finalTest)
+finalPred
+```
